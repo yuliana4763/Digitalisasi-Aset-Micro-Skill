@@ -1,4 +1,5 @@
 # firestore_utils.py
+
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
@@ -22,21 +23,25 @@ def init_firestore():
             "client_x509_cert_url": st.secrets["firebase"]["client_x509_cert_url"],
         }
 
-        # Tambahkan universe_domain kalau ada di secrets
+        # Tambahkan universe_domain jika ada
         if "universe_domain" in st.secrets["firebase"]:
             cred_dict["universe_domain"] = st.secrets["firebase"]["universe_domain"]
 
         cred = credentials.Certificate(cred_dict)
         firebase_admin.initialize_app(cred)
+
     return firestore.client()
 
+
+# Global Firestore DB instance
 db = init_firestore()
+
 
 # ==============================
 # 2. CRUD Functions
 # ==============================
 
-def add_category(category_name: str):
+def add_category(category_name: str) -> bool:
     """Tambah kategori baru"""
     try:
         db.collection("categories").document(category_name).set({"name": category_name})
@@ -45,8 +50,9 @@ def add_category(category_name: str):
         st.error(f"Gagal menambah kategori: {e}")
         return False
 
-def delete_category(category_name: str):
-    """Hapus kategori (beserta subcollectionnya)"""
+
+def delete_category(category_name: str) -> bool:
+    """Hapus kategori (beserta subcollection-nya jika ada)"""
     try:
         db.collection("categories").document(category_name).delete()
         return True
@@ -54,7 +60,8 @@ def delete_category(category_name: str):
         st.error(f"Gagal menghapus kategori: {e}")
         return False
 
-def add_subcategory(category: str, subcategory: str):
+
+def add_subcategory(category: str, subcategory: str) -> bool:
     """Tambah subkategori"""
     try:
         db.collection("categories").document(category).collection("subcategories").document(subcategory).set(
@@ -65,7 +72,8 @@ def add_subcategory(category: str, subcategory: str):
         st.error(f"Gagal menambah subkategori: {e}")
         return False
 
-def delete_subcategory(category: str, subcategory: str):
+
+def delete_subcategory(category: str, subcategory: str) -> bool:
     """Hapus subkategori"""
     try:
         db.collection("categories").document(category).collection("subcategories").document(subcategory).delete()
@@ -74,7 +82,8 @@ def delete_subcategory(category: str, subcategory: str):
         st.error(f"Gagal menghapus subkategori: {e}")
         return False
 
-def add_asset(category: str, subcategory: str, nama: str, link: str):
+
+def add_asset(category: str, subcategory: str, nama: str, link: str) -> bool:
     """Tambah aset ke dalam subkategori"""
     try:
         db.collection("categories").document(category).collection("subcategories").document(subcategory).collection("assets").add(
@@ -85,7 +94,8 @@ def add_asset(category: str, subcategory: str, nama: str, link: str):
         st.error(f"Gagal menambah aset: {e}")
         return False
 
-def get_assets(category: str, subcategory: str):
+
+def get_assets(category: str, subcategory: str) -> list:
     """Ambil semua aset dari subkategori"""
     try:
         docs = db.collection("categories").document(category).collection("subcategories").document(subcategory).collection("assets").stream()
@@ -94,11 +104,37 @@ def get_assets(category: str, subcategory: str):
         st.error(f"Gagal mengambil aset: {e}")
         return []
 
-def delete_asset(category: str, subcategory: str, asset_id: str):
-    """Hapus aset berdasarkan id"""
+
+def delete_asset(category: str, subcategory: str, asset_id: str) -> bool:
+    """Hapus aset berdasarkan ID"""
     try:
         db.collection("categories").document(category).collection("subcategories").document(subcategory).collection("assets").document(asset_id).delete()
         return True
     except Exception as e:
         st.error(f"Gagal menghapus aset: {e}")
+        return False
+
+
+def get_categories() -> list:
+    """Ambil semua kategori"""
+    try:
+        docs = db.collection("categories").stream()
+        return [doc.id for doc in docs]
+    except Exception as e:
+        st.error(f"Gagal mengambil kategori: {e}")
+        return []
+
+
+def rename_category(old_name: str, new_name: str) -> bool:
+    """
+    Ganti nama kategori pada semua dokumen koleksi 'aset' dari old_name menjadi new_name
+    (jika kamu simpan data 'category' dalam dokumen aset).
+    """
+    try:
+        docs = db.collection("aset").where("category", "==", old_name).stream()
+        for doc in docs:
+            db.collection("aset").document(doc.id).update({"category": new_name})
+        return True
+    except Exception as e:
+        st.error(f"Gagal mengganti nama kategori: {e}")
         return False
