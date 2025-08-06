@@ -4,5 +4,6 @@ pandas==2.2.2
 requests==2.32.3
 firebase-admin==6.6.0
 streamlit_autorefresh==1.0.1
+google-cloud-firestore
 
 
