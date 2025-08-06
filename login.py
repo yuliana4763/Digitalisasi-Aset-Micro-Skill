@@ -4,7 +4,7 @@ import requests
 # ==============================
 # Firebase Web API Key (dari secrets)
 # ==============================
-API_KEY = st.secrets["firebase_api_key"]
+API_KEY = st.secrets["firebase_web"]["apiKey"]
 
 # ==============================
 # Fungsi login ke Firebase
